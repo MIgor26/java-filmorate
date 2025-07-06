@@ -1,5 +1,9 @@
 package ru.yandex.practicum.filmorate;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,11 +13,16 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 public class FilmControllerTest {
+
+    private final ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+    private final Validator validator = validatorFactory.getValidator();
 
     @Autowired
     private FilmController filmController;
@@ -25,19 +34,20 @@ public class FilmControllerTest {
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(180);
-        assertThrows(ValidationException.class, () -> filmController.create(film), "Валидация имени работает не верно");
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        System.out.println(violations);
+        assertTrue(!violations.isEmpty(), "Валидация имени работает не верно");
     }
 
     @Test
     public void maxLengthDescriptionValidateTest() {
         Film film = new Film();
         film.setName("Film");
-        film.setDescription("0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_" +
-                "0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_0123456789_" +
-                "0123456789_0123456789_0123456789");
+        film.setDescription("1".repeat(201));
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(180);
-        assertThrows(ValidationException.class, () -> filmController.create(film), "Валидация длины описания работает не верно");
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertTrue(!violations.isEmpty(), "Валидация длины описания работает не верно");
     }
 
     @Test
@@ -57,7 +67,8 @@ public class FilmControllerTest {
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(-100);
-        assertThrows(ValidationException.class, () -> filmController.create(film), "Валидация продолжительности работает не верно");
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        assertTrue(!violations.isEmpty(), "Валидация продолжительности фильма работает не верно");
     }
 
     @Test

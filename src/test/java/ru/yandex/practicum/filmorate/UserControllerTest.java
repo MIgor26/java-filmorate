@@ -1,5 +1,9 @@
 package ru.yandex.practicum.filmorate;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,12 +14,15 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class UserControllerTest {
+
+    private final ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+    private final Validator validator = validatorFactory.getValidator();
 
     @Autowired
     private UserController userController;
@@ -27,7 +34,8 @@ class UserControllerTest {
         user.setLogin("Login");
         user.setName("Name");
         user.setBirthday(LocalDate.of(1980, 10, 10));
-        assertThrows(ValidationException.class, () -> userController.create(user), "Валидация имайла работает не верно.");
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertTrue(!violations.isEmpty(), "Валидация имайла работает не верно");
     }
 
     @Test
@@ -57,7 +65,8 @@ class UserControllerTest {
         user.setLogin("Login");
         user.setName("Name");
         user.setBirthday(LocalDate.of(2026, 10, 10));
-        assertThrows(ValidationException.class, () -> userController.create(user), "Валидация даты рождения работает не верно.");
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+        assertTrue(!violations.isEmpty(), "Валидация даты рождения работает не верно");
     }
 
     @Test

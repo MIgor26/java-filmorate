@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
@@ -7,7 +8,6 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,15 +24,8 @@ public class UserController {
     }
 
     @PostMapping
-    public User create(@RequestBody User user) {
+    public User create(@Valid @RequestBody User user) {
         log.info("Получен запрос на создание нового пользователя {}", user);
-        // Проверяем имейл на соответствие условиям.
-        if (!validateEmail(user.getEmail())) {
-            String errorMessage = String.format("Имайл = %s не прошёл валидацию. " +
-                    "Имейл не должен быть пустым и должен иметь верный формат.", user.getEmail());
-            log.error(errorMessage);
-            throw new ValidationException(errorMessage);
-        }
         // Проверяем, есть ли пользователь в базе с таким же имейлом.
         if (users.entrySet().stream()
                 .anyMatch(entry -> user.getEmail().equals(entry.getValue().getEmail()))) {
@@ -44,13 +37,6 @@ public class UserController {
         if (!validateLogin(user.getLogin())) {
             String errorMessage = String.format("Логин %s не прошёл валидацию. " +
                     "Логин не должен быть пустым и не может содержать пробелы.", user.getLogin());
-            log.error(errorMessage);
-            throw new ValidationException(errorMessage);
-        }
-        // Проверяем дату рождения на соответствие условию.
-        if (!validateBirthday(user.getBirthday())) {
-            String errorMessage = "Дата рождения " + user.getBirthday() + " не прошла валидацию. " +
-                    "Дата рождения не может быть в будущем";
             log.error(errorMessage);
             throw new ValidationException(errorMessage);
         }
@@ -69,7 +55,7 @@ public class UserController {
     }
 
     @PutMapping
-    public User update(@RequestBody User user) {
+    public User update(@Valid @RequestBody User user) {
         log.info("Получен запрос на изменение данных пользователя {}", user);
         // Проверяем имеется ли id пользователя в теле запроса.
         if (user.getId() == null) {
@@ -90,10 +76,8 @@ public class UserController {
                 }
             }
             // Обновдяем поля, в случае удачной валидации.
-            if (validateEmail(user.getEmail())) {
-                log.info("Имаил пользователя обновлён.");
-                oldUser.setEmail(user.getEmail());
-            }
+            log.info("Имаил пользователя обновлён.");
+            oldUser.setEmail(user.getEmail());
             if (validateLogin(user.getLogin())) {
                 log.info("Логин пользователя обновлён.");
                 oldUser.setLogin(user.getLogin());
@@ -105,10 +89,8 @@ public class UserController {
                 oldUser.setName(oldUser.getLogin());
                 log.info("Имя пользователя не задано. Для отображения будет использоваться логин.");
             }
-            if (validateBirthday(user.getBirthday())) {
-                log.info("Дата рождения пользователя обновлёна.");
-                oldUser.setBirthday(user.getBirthday());
-            }
+            log.info("Дата рождения пользователя обновлёна.");
+            oldUser.setBirthday(user.getBirthday());
             log.info("Данные пользователя {} успешно обновлёны.", oldUser);
             return oldUser;
         }
@@ -127,19 +109,9 @@ public class UserController {
         return ++currentMaxId;
     }
 
-    // Вспомогательный метод для валидации имейла.
-    private boolean validateEmail(String email) {
-        return (email != null && !email.isBlank() && email.contains("@"));
-    }
-
     // Вспомогательный метод для валидации логина.
     private boolean validateLogin(String login) {
         return (login != null && !login.isBlank() && !login.contains(" "));
-    }
-
-    // Вспомогательный метод для валидации даты рождения.
-    private boolean validateBirthday(LocalDate birthday) {
-        return (birthday.isBefore(LocalDate.now()));
     }
 
     // Вспомогательный метод для валидации имени.
