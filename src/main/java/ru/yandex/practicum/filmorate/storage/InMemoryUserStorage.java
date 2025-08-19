@@ -1,4 +1,156 @@
 package ru.yandex.practicum.filmorate.storage;
 
-public class InMemoryUserStorage {
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.model.User;
+
+import java.util.*;
+
+@Slf4j
+@Component
+public class InMemoryUserStorage implements UserStorage {
+    private final Map<Integer, User> users = new HashMap<>();
+
+    @Override
+    public User findById(int id) {
+        return getUserById(id);
+    }
+
+    @Override
+    public Set<Integer> getUsersFriends(int id) {
+        User user = getUserById(id);
+        return getFriends(user);
+    }
+
+    @Override
+    public Set<Integer> commonFriends(int id, int otherId) {
+        Set<Integer> userFriends = new HashSet<>(getFriends(getUserById(id)));
+        Set<Integer> otherFriends = getFriends(getUserById(otherId));
+        userFriends.retainAll(otherFriends);
+        return userFriends;
+    }
+
+    @Override
+    public Collection<User> getAll() {
+        return users.values();
+    }
+
+    @Override
+    public User create(User user) {
+        // Добавляем id
+        user.setId(getNextId());
+        // Если имя пользователя не задано или пустое, то задаём логин для отображения имени.
+        if (!validateName(user.getName())) {
+            user.setName(user.getLogin());
+            log.info("Имя пользователя не задано. Используем логин для отображения имени.");
+        }
+        // Добавляем нового пользователя в базу.
+        users.put(user.getId(), user);
+        log.info("Пользователь {} успешно создан.", user);
+        return user;
+    }
+
+    @Override
+    public User update(User user) {
+        // Находим данного пользователя в базе.
+        User oldUser = getUserById(user.getId());
+        // Если имейл отличается от старого имейла, то проверяем, есть ли пользователь в базе с таким имейлом.
+        if (user.getEmail() != null && !user.getEmail().equals(oldUser.getEmail())) {
+            checkDuplicateEmail(user);
+        }
+        // Обновляем поля, в случае удачной проверки.
+        oldUser.setEmail(user.getEmail());
+        log.info("Имаил пользователя обновлён.");
+        if (validateLogin(user.getLogin())) {
+            oldUser.setLogin(user.getLogin());
+            log.info("Логин пользователя обновлён.");
+        }
+        if (validateName(user.getName())) {
+            oldUser.setName(user.getName());
+            log.info("Имя пользователя обновлёно.");
+        }
+        oldUser.setBirthday(user.getBirthday());
+        log.info("Дата рождения пользователя обновлёна.");
+        log.info("Данные пользователя {} успешно обновлёны.", oldUser);
+        return oldUser;
+    }
+
+    @Override
+    public List<User> addFriends(int id, int friendsId) {
+        User user = getUserById(id);
+        User friend = getUserById(friendsId);
+        // Получение списков друзей пользователей
+        Set<Integer> usersFriend = user.getFriends();
+        Set<Integer> friendUsers = friend.getFriends();
+        // Добавление друг друга в друзья
+        usersFriend.add(friendsId);
+        friendUsers.add(id);
+        return List.of(user, friend);
+    }
+
+    @Override
+    public List<User> delFriends(int id, int friendsId) {
+        User user = getUserById(id);
+        User friend = getUserById(friendsId);
+        // Получение списков друзей пользователей
+        Set<Integer> usersFriend = user.getFriends();
+        Set<Integer> friendUsers = friend.getFriends();
+        // Удаление друг друга из друзей
+        usersFriend.remove(friendsId);
+        friendUsers.remove(id);
+        return List.of(user, friend);
+    }
+
+    // Публичный метод проверки дубликации имайлов. Публичный, так как используется в UserService
+    @Override
+    public void checkDuplicateEmail(User user) {
+        if (users.entrySet().stream()
+                .anyMatch(entry -> user.getEmail().equals(entry.getValue().getEmail()))) {
+            String errorMessage = String.format("Имайл %s уже используется", user.getEmail());
+            log.error(errorMessage);
+            throw new DuplicatedDataException(errorMessage);
+        }
+    }
+
+    // Вспомогательный метод для генерации id нового пользователя.
+    private int getNextId() {
+        int currentMaxId = users.keySet()
+                .stream()
+                .mapToInt(id -> id)
+                .max()
+                .orElse(0);
+        return ++currentMaxId;
+    }
+
+    // Вспомогательный метод для валидации логина.
+    private boolean validateLogin(String login) {
+        return (login != null && !login.isBlank() && !login.contains(" "));
+    }
+
+    // Вспомогательный метод для валидации имени.
+    private boolean validateName(String name) {
+        return (name != null && !name.isBlank());
+    }
+
+    //Вспомогательный метод поиска пользователя по id
+    private User getUserById(int id) {
+        if (!users.containsKey(id)) {
+            String errorMessage = String.format("Пользователь с id = %d не найден", id);
+            log.error(errorMessage);
+            throw new NotFoundException(errorMessage);
+        }
+        return users.get(id);
+    }
+
+    //Вспомогательный метод получения списка друзей
+    private Set<Integer> getFriends(User user) {
+        if (user.getFriends() == null) {
+            String errorMessage = String.format("У пользователя с id = %d друзья не найдены.", user.getId());
+            log.error(errorMessage);
+            throw new NotFoundException(errorMessage);
+        }
+        return user.getFriends();
+    }
 }
