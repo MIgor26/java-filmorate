@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,11 +30,11 @@ public class ErrorHandler {
         return new ErrorResponse("Ошибка валидации: ", e.getMessage());
     }
 
-    // ?? Необходим ли данный обработчик? Вместо e.getMessage() можно использовать что-то другое,
-    // чтобы не возвращать лишнюю информацию клиенту
-//    @ExceptionHandler
-//    @ResponseStatus(HttpStatus.BAD_REQUEST)
-//    public ErrorResponse handleMethodArgumentNotValid (MethodArgumentNotValidException e) {
-//        return new ErrorResponse("Ошибка валидации: ", e.getMessage());
-//    }
+    //     ?? Необходим ли данный обработчик? Вместо e.getMessage() можно использовать что-то другое,
+//     чтобы не возвращать лишнюю информацию клиенту
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        return new ErrorResponse("Ошибка валидации: ", e.getMessage());
+    }
 }

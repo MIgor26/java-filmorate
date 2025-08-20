@@ -10,7 +10,6 @@ import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Slf4j
@@ -27,11 +26,11 @@ public class UserService {
         return inMemoryUserStorage.findById(id);
     }
 
-    public Set<Integer> getUsersFriends(int id) {
+    public List<User> getUsersFriends(int id) {
         return inMemoryUserStorage.getUsersFriends(id);
     }
 
-    public Set<Integer> commonFriends(int id, int otherId) {
+    public List<User> commonFriends(int id, int otherId) {
         return inMemoryUserStorage.commonFriends(id, otherId);
     }
 

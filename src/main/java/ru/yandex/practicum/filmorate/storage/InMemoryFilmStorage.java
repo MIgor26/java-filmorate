@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.storage;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.controller.DateReleaseValidator;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -14,6 +15,15 @@ import java.util.*;
 public class InMemoryFilmStorage implements FilmStorage {
     private final Map<Integer, Film> films = new HashMap<>();
     private final Comparator<Film> likeComparator = Comparator.comparing(film -> film.getLike().size());
+
+    // ?? Не знаю, верно ли так внедрять зависимость?
+    private UserStorage userStorage;
+
+    @Autowired
+    public InMemoryFilmStorage(UserStorage userStorage) {
+        this.userStorage = userStorage;
+    }
+
 
     @Override
     public Optional<Film> findById(int filmId) {
@@ -71,8 +81,8 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public Film likeFilm(int id, int userId) {
         Film oldFilm = getFilmById(id);
-        // В ТЗ нет явного указания, проверять ли есть ли такой пользователь в базе. Игнорирую данную проверку.
-        // В случае необходимости этой проверки надо думать, может в данный класс внедрить зависимость?
+        // !! Выглядит как костыль
+        userStorage.getUserById(userId);
         oldFilm.getLike().add(userId);
         return oldFilm;
     }
@@ -80,6 +90,8 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public Film delLikeFilm(int id, int userId) {
         Film oldFilm = getFilmById(id);
+        // !! Выглядит как костыль
+        userStorage.getUserById(userId);
         oldFilm.getLike().remove(userId);
         return oldFilm;
     }

@@ -19,15 +19,16 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public Set<Integer> getUsersFriends(int id) {
+    public List<User> getUsersFriends(int id) {
         User user = getUserById(id);
         return getFriends(user);
     }
 
     @Override
-    public Set<Integer> commonFriends(int id, int otherId) {
-        Set<Integer> userFriends = new HashSet<>(getFriends(getUserById(id)));
-        Set<Integer> otherFriends = getFriends(getUserById(otherId));
+    public List<User> commonFriends(int id, int otherId) {
+        // Делаем новый список, чтобы при поиске общих друзей ссылка на друзей не изменилась
+        List<User> userFriends = new ArrayList<>(getFriends(getUserById(id)));
+        List<User> otherFriends = getFriends(getUserById(otherId));
         userFriends.retainAll(otherFriends);
         return userFriends;
     }
@@ -87,7 +88,9 @@ public class InMemoryUserStorage implements UserStorage {
         // Добавление друг друга в друзья
         usersFriend.add(friendsId);
         friendUsers.add(id);
-        return List.of(user, friend);
+        return usersFriend.stream()
+                .map(x -> getUserById(x))
+                .toList();
     }
 
     @Override
@@ -100,7 +103,9 @@ public class InMemoryUserStorage implements UserStorage {
         // Удаление друг друга из друзей
         usersFriend.remove(friendsId);
         friendUsers.remove(id);
-        return List.of(user, friend);
+        return usersFriend.stream()
+                .map(x -> getUserById(x))
+                .toList();
     }
 
     // Публичный метод проверки дубликации имайлов. Публичный, так как используется в UserService
@@ -134,8 +139,8 @@ public class InMemoryUserStorage implements UserStorage {
         return (name != null && !name.isBlank());
     }
 
-    //Вспомогательный метод поиска пользователя по id
-    private User getUserById(int id) {
+    // Публичный метод поиска пользователя по id
+    public User getUserById(int id) {
         if (!users.containsKey(id)) {
             String errorMessage = String.format("Пользователь с id = %d не найден", id);
             log.error(errorMessage);
@@ -145,12 +150,14 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     //Вспомогательный метод получения списка друзей
-    private Set<Integer> getFriends(User user) {
+    private List<User> getFriends(User user) {
         if (user.getFriends() == null) {
             String errorMessage = String.format("У пользователя с id = %d друзья не найдены.", user.getId());
             log.error(errorMessage);
             throw new NotFoundException(errorMessage);
         }
-        return user.getFriends();
+        return user.getFriends().stream()
+                .map(this::getUserById)
+                .toList();
     }
 }
