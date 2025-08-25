@@ -26,13 +26,11 @@ public class UserController {
         return userService.findById(id);
     }
 
-    //Верно
     @GetMapping("/{id}/friends")
     public List<User> getUsersFriends(@PathVariable int id) {
         return userService.getUsersFriends(id);
     }
 
-    //Верно
     @GetMapping("{id}/friends/common/{otherId}")
     public List<User> commonFriends(@PathVariable int id, @PathVariable int otherId) {
         return userService.commonFriends(id, otherId);

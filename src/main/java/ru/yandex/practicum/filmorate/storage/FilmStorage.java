@@ -17,7 +17,9 @@ public interface FilmStorage {
 
     public Film update(Film film);
 
-    public Film likeFilm(int id, int userId);
+    public Film likeFilm(Film film, int userId);
 
-    public Film delLikeFilm(int id, int userId);
+    public Film delLikeFilm(Film film, int userId);
+
+    public Film getFilmById(int id);
 }

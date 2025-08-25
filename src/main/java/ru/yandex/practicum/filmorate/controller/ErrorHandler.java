@@ -30,8 +30,6 @@ public class ErrorHandler {
         return new ErrorResponse("Ошибка валидации: ", e.getMessage());
     }
 
-    //     ?? Необходим ли данный обработчик? Вместо e.getMessage() можно использовать что-то другое,
-//     чтобы не возвращать лишнюю информацию клиенту
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentNotValid(MethodArgumentNotValidException e) {

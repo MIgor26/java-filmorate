@@ -114,7 +114,6 @@ public class InMemoryUserStorage implements UserStorage {
         if (users.entrySet().stream()
                 .anyMatch(entry -> user.getEmail().equals(entry.getValue().getEmail()))) {
             String errorMessage = String.format("Имайл %s уже используется", user.getEmail());
-            log.error(errorMessage);
             throw new DuplicatedDataException(errorMessage);
         }
     }
@@ -143,7 +142,6 @@ public class InMemoryUserStorage implements UserStorage {
     public User getUserById(int id) {
         if (!users.containsKey(id)) {
             String errorMessage = String.format("Пользователь с id = %d не найден", id);
-            log.error(errorMessage);
             throw new NotFoundException(errorMessage);
         }
         return users.get(id);
@@ -153,7 +151,6 @@ public class InMemoryUserStorage implements UserStorage {
     private List<User> getFriends(User user) {
         if (user.getFriends() == null) {
             String errorMessage = String.format("У пользователя с id = %d друзья не найдены.", user.getId());
-            log.error(errorMessage);
             throw new NotFoundException(errorMessage);
         }
         return user.getFriends().stream()

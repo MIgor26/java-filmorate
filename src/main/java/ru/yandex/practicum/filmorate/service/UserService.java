@@ -17,7 +17,6 @@ public class UserService {
     private final UserStorage inMemoryUserStorage;
 
     @Autowired
-    // ?? Сомневаюсь. Может в параметрах конструктора как раз нужна переменная класса inMemoryUserStorage?
     public UserService(UserStorage inMemoryUserStorage) {
         this.inMemoryUserStorage = inMemoryUserStorage;
     }
@@ -46,7 +45,6 @@ public class UserService {
         if (!validateLogin(user.getLogin())) {
             String errorMessage = String.format("Логин %s не прошёл валидацию. " +
                     "Логин не должен быть пустым и не может содержать пробелы.", user.getLogin());
-            log.error(errorMessage);
             throw new ValidationException(errorMessage);
         }
         return inMemoryUserStorage.create(user);
@@ -57,7 +55,6 @@ public class UserService {
         // Проверяем имеется ли id пользователя в теле запроса.
         if (user.getId() == null) {
             String errorMessage = "Не указан id пользователя. Запрос не может быть обработан";
-            log.error(errorMessage);
             throw new ValidationException(errorMessage);
         }
         return inMemoryUserStorage.update(user);
