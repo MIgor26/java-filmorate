@@ -17,7 +17,7 @@ import java.util.Set;
 @NoArgsConstructor
 @EqualsAndHashCode(of = {"email"})
 public class User {
-    private Integer id;
+    private Integer id; // В БД user_id
     @NotBlank(message = "Имайл не должен быть пустым")
     @Email(message = "Должен быть корректный имайл")
     private String email;
@@ -25,5 +25,8 @@ public class User {
     private String name;
     @Past(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
-    private Set<Integer> friends = new HashSet<>();
+    private Set<Integer> friends = new HashSet<>(); // В БД таблица friendship
+    // !!new Нужно ещё логику продумать.
+    // То ли мапу друзей отдельно создать - и тогда поле friends, вроде, не нужно.
+    // То ло это должно быть множество объектов с полями id и флаг(да/нет)
 }
