@@ -70,7 +70,7 @@ public class DbFilmStorage implements FilmStorage {
             PreparedStatement ps = connection.prepareStatement(CREATE_QUERY, Statement.RETURN_GENERATED_KEYS);
             // Заполнение полей таблиц в БД полями из объекта (учтено что в БД поля начинаются с 1, а в списке с 0)
             for (int idx = 0; idx < fields.size(); idx++) {
-                ps.setObject(idx + 1 , fields.get(idx));
+                ps.setObject(idx + 1, fields.get(idx));
             }
             return ps;
         }, keyHolder);
