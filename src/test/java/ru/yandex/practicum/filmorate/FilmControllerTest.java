@@ -30,7 +30,7 @@ public class FilmControllerTest {
     @Test
     public void emptyNameValidateTest() {
         Film film = new Film();
-        film.setName("");
+        film.setTitle("");
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(180);
@@ -42,7 +42,7 @@ public class FilmControllerTest {
     @Test
     public void maxLengthDescriptionValidateTest() {
         Film film = new Film();
-        film.setName("Film");
+        film.setTitle("Film");
         film.setDescription("1".repeat(201));
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(180);
@@ -53,7 +53,7 @@ public class FilmControllerTest {
     @Test
     public void releaseDateValidateTest() {
         Film film = new Film();
-        film.setName("Film");
+        film.setTitle("Film");
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1500, 10, 10));
         film.setDuration(180);
@@ -63,7 +63,7 @@ public class FilmControllerTest {
     @Test
     public void durationValidateTest() {
         Film film = new Film();
-        film.setName("Film");
+        film.setTitle("Film");
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(-100);
@@ -74,8 +74,8 @@ public class FilmControllerTest {
     @Test
     void notFoundByIdTest() {
         Film film = new Film();
-        film.setId(100);
-        film.setName("Film");
+        film.setId((long)100);
+        film.setTitle("Film");
         film.setDescription("Description");
         film.setReleaseDate(LocalDate.of(1980, 10, 10));
         film.setDuration(-100);

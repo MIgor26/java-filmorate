@@ -100,7 +100,7 @@ class UserControllerTest {
     @Test
     void notFoundByIdTest() {
         User user = new User();
-        user.setId(100);
+        user.setUser_id((long)100);
         user.setEmail("user@mail.ru");
         user.setLogin("Login1");
         user.setName("user");

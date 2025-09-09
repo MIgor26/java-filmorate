@@ -17,7 +17,7 @@ import java.util.Set;
 @NoArgsConstructor
 @EqualsAndHashCode(of = {"email"})
 public class User {
-    private Integer id;
+    private Long id;
     @NotBlank(message = "Имайл не должен быть пустым")
     @Email(message = "Должен быть корректный имайл")
     private String email;
@@ -25,5 +25,5 @@ public class User {
     private String name;
     @Past(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
-    private Set<Integer> friends = new HashSet<>();
+    private Set<Long> friends = new HashSet<>();
 }
