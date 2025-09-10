@@ -7,24 +7,25 @@ import java.util.List;
 
 public interface UserStorage {
 
-    public User findById(long id);
+    public Collection<User> getAll();
+
+    public User findById(Long id);
 
     public List<User> getUsersFriends(long id);
 
     public List<User> commonFriends(long id, long otherId);
 
-    public Collection<User> getAll();
-
     public User create(User user);
 
     public User update(User user);
 
-    public List<User> addFriends(long id, long friendsId);
+    public void addFriends(long id, long friendsId);
 
-    public List<User> delFriends(long id, long friendsId);
+    public void delFriends(long id, long friendsId);
 
-    public void checkDuplicateEmail(User user);
+    public void deleteAllFriends(Long userId);
 
-    public User getUserById(long id);
+    public boolean emilExists(User user);
 
+    public boolean loginExists(User user);
 }

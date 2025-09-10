@@ -2,193 +2,172 @@ package ru.yandex.practicum.filmorate.dal;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.dal.mappers.FriendsIdRowMapper;
-import ru.yandex.practicum.filmorate.dal.mappers.UserResultSetExtractor;
-import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
-import ru.yandex.practicum.filmorate.exception.InternalServerException;
+import ru.yandex.practicum.filmorate.dal.mappers.UserMapper;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.SQLOutput;
+import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
-@Repository
-@Qualifier("dbUserService")
+@Repository("dbUserStorage")
 @RequiredArgsConstructor
 public class DbUserStorage implements UserStorage {
-    protected final JdbcTemplate jdbc;
-    // Экстрактор для возвращения карты пользователей (объекты класса User) со всеми полями
-    protected final UserResultSetExtractor userResultSetExtractor;
-    // Маппер для возвращения списка id друзей
-    protected final FriendsIdRowMapper friendsIdRowMapper;
+    protected final JdbcTemplate jdbcTemplate;
 
-    private static final String FIND_USER_BY_ID_QUERY = "SELECT * FROM users " +
-            "LEFT JOIN friendship ON users.id = friendship.id " +
-            "WHERE users.id = ?";
-    private static final String FIND_ALL_USERS_QUERY = "SELECT * FROM users " +
-            "LEFT JOIN friendship ON users.id = friendship.id";
-    private static final String FIND_USERS_FRIENDS_ID_QUERY = "SELECT friend_id FROM friendship WHERE id = ?";
-    private static final String FIND_COMMON_FRIENDS_QUERY = "SELECT f1.friend_id FROM friendship f1 " +
-            "JOIN friendship f2 ON f1.friend_id = f2.friend_id WHERE f1.id = ? AND f2.id = ?";
-    private static final String CREATE_QUERY = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
-    private static final String UPDATE_QUERY = "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? " +
-            "WHERE id = ?";
-    private static final String ADD_FRIENDS_QUERRY = "INSERT INTO friendship " +
-            "(id, friend_id) VALUES(?, ?)";
-    private static final String DELETE_FRIENDS_QUERY = "DELETE FROM friendship WHERE id = ? " +
-            "AND friend_id = ?";
+    private static final String FIND_ALL_USERS = "SELECT * FROM users " +
+            "LEFT JOIN friendship ON users.id = friendship.user_id";
 
-    // Готово
-    public User findById(long id) {
-        Map<Long, User> result = jdbc.query(FIND_USER_BY_ID_QUERY, userResultSetExtractor, id);
-        if (result.isEmpty()) {// Метод выше не может вернуть null, поэтому проверку на null не включаю??
-            String errorMessage = String.format("Пользователь с id = %d не найден", id);
-            throw new NotFoundException(errorMessage);
-        }
-        // Так как, согласно запросу, в карте result может быть только одна строка, то возвращаем первую
-        return result.values().iterator().next();
-    }
+    private static final String FIND_USER_BY_ID = "SELECT * FROM users WHERE users.id = ?";
 
-    // Готово
-    public Collection<User> getAll() {
-        Map<Long, User> result = jdbc.query(FIND_ALL_USERS_QUERY, userResultSetExtractor);
-        if (result.isEmpty()) {// Метод выше не может вернуть null, поэтому проверку на null не включаю
-            String errorMessage = "Пользователей в базе нет";
-            throw new NotFoundException(errorMessage);
-        }
-        return result.values();
-    }
+    private static final String FIND_FRIENDS_ID = "SELECT friend_id FROM friendship WHERE user_id = ?";
 
-    // Готово
-    public List<User> getUsersFriends(long id) {
-        //List<Long> friendsId = jdbc.query(FIND_USERS_FRIENDS_ID_QUERY, friendsIdRowMapper, id);
-        System.out.println("Запрос списка друзей");
-        List<Long> friendsId = jdbc.queryForList(FIND_USERS_FRIENDS_ID_QUERY, Long.class, id);
-        System.out.println("Получен список " + friendsId);
-        if (friendsId.isEmpty()) {// Метод выше не может вернуть null, поэтому проверку на null не включаю
-            String errorMessage = String.format("У пользователя с id = %d нет друзей", id);
-            throw new NotFoundException(errorMessage);
-        } // Если у пользователя есть друзья, то users не может быть пустой - поэтому далее проверки нет
-        Map<Long, User> users =  jdbc.query(FIND_ALL_USERS_QUERY, userResultSetExtractor);
-        // Инициация списка друзей запрашиваемого пользователя
-        List<User> usersFriends = new ArrayList<>();
-        // Проход по всему списку id друзей и выборка из карты всех пользователей
-        // только пользователей, которые являются друзьями запрашиваемого пользователя
-        for (Long friendId : friendsId) {
-            if (users.containsKey(friendId)) {
-                usersFriends.add(users.get(friendId));
-            }
-        }
-        return usersFriends;
-    }
+    private static final String FIND_ALL_FRIENDS_USER = "SELECT u.* FROM users u " +
+            "JOIN friendship f ON u.id = f.friend_id WHERE f.user_id = ?";
 
-    // Готово
-    public List<User> commonFriends(long id, long otherId) {
-        List<Long> friendsId = jdbc.query(FIND_COMMON_FRIENDS_QUERY, friendsIdRowMapper, id, otherId);
-        if (friendsId.isEmpty()) {// Метод выше не может вернуть null, поэтому проверку на null не включаю
-            String errorMessage = "У данных пользователей нет общих друзей";
-            throw new NotFoundException(errorMessage);
-        } // Если у пользователя есть общие друзья, то users не может быть пустой - поэтому далее проверки нет
-        Map<Long, User> users =  jdbc.query(FIND_ALL_USERS_QUERY, userResultSetExtractor);
-        // Инициация списка общих друзей запрашиваемых пользователей
-        List<User> usersFriends = new ArrayList<>();
-        // Проход по всему списку id общих друзей и выборка из карты всех пользователей
-        // только пользователей, которые являются общими друзьями запрашиваемых пользователей
-        for (Long friendId : friendsId) {
-            if (users.containsKey(friendId)) {
-                usersFriends.add(users.get(friendId));
-            }
-        }
-        return usersFriends;
-    }
+    private static final String FIND_COMMON_FRIENDS = "SELECT u.* FROM users u " +
+            "JOIN friendship f1 ON u.id = f1.friend_id " +
+            "JOIN friendship f2 ON u.id = f2.friend_id WHERE f1.user_id = ? AND f2.user_id = ?";
 
-    // Готово
-    public User create(User user) {
-        // Создание объекта для возвращения сгенерированных ключей
-        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        // Создание списка из полей пользователя
-        List<Object> fields = List.of(user.getEmail(), user.getLogin(), user.getName(), user.getBirthday());
-        jdbc.update(connection -> {
-            PreparedStatement ps = connection
-                    .prepareStatement(CREATE_QUERY, Statement.RETURN_GENERATED_KEYS);
-            // Заполнение полей таблиц в БД полями из объекта (учтено что в БД поля начинаются с 1, а в списке с 0)
-            for (int idx = 0; idx < fields.size(); idx++) {
-                ps.setObject(idx + 1, fields.get(idx));
-            }
-            return ps;
-        },keyHolder);
-        Long id = keyHolder.getKeyAs(Long.class);
-        // Имя исключения взято из учебного проекта Catsgram
-        if (id == null) {
-            throw new InternalServerException("Не удалось сохранить данные");
-        }
-        // Присвоения id объекту user
-        user.setId(id);
-        return user;
-    }
+    public static final String INSERT_USER = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
+    public static final String EMILE_EXISTS = "SELECT COUNT(*) FROM users WHERE email = ?";
+    public static final String LOGIN_EXISTS = "SELECT COUNT(*) FROM users WHERE login = ?";
+    public static final String UPDATE_USER = "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? WHERE id = ?";
+    public static final String INSERT_FRIENDS = "INSERT INTO friendship (user_id, friend_id, status) VALUES(?, ?, false)";
+    public static final String DELETE_FRIEND = "DELETE FROM friendship WHERE user_id = ? AND friend_id = ?";
+    public static final String DELETE_ALL_FRIENDS = "DELETE FROM friendship WHERE user_id = ? OR friend_id = ?";
 
-    // Готово
-    // !! Данный метод по максимуму использует 3 обращения к базе. Если другой способ проверки дубликации имайлов,
-    // то лучше применить его.
-    public User update(User user) {
-        User oldUser = findById(user.getId());
-        if (user.getEmail() != null && !oldUser.getEmail().equals(user.getEmail())) {
-            checkDuplicateEmail(user);
-        }
-        int rows = jdbc.update(UPDATE_QUERY, user.getEmail(), user.getLogin(), user.getName(), user.getBirthday(), user.getId());
-        if (rows == 0) {
-            throw new InternalServerException("Не удалось обновить данные");
-        }
-        return user;
-    }
-
-    // Готово
-    // На данном этапе дружба односторонняя, поэтому поле confirmation таблицы friendship не используется
-    // Поле оставлено с целью дальнейшего расширения функционала, если понадобится реализовать подтверждение дружбы
-    public List<User> addFriends(long id, long friendsId) {
-        int rows = jdbc.update(ADD_FRIENDS_QUERRY, id, friendsId);
-        if (rows == 0) {
-            throw new InternalServerException("Не удалось обновить данные");
-        }
-        return getUsersFriends(id);
-    }
-
-    // Готово
-    public List<User> delFriends(long id, long friendsId) {
-        int rows = jdbc.update(DELETE_FRIENDS_QUERY, id, friendsId);
-        if (rows == 0) {
-            throw new InternalServerException("Не удалось обновить данные");
-        }
-        return getUsersFriends(id);
-    }
-
-    // Метод проверки дубликации имайлов. Затратный, так как приходится доставать из БД всю таблицу users.
-    // ?? Но другого способа не придумал
     @Override
-    public void checkDuplicateEmail(User user) {
-        Map<Long, User> result = jdbc.query(FIND_ALL_USERS_QUERY, userResultSetExtractor);
-        if (result.isEmpty()) return;
+    public Collection<User> getAll() {
+        Map<Long, User> userMap = new HashMap<>();
 
-        if (result.values().stream()
-                .anyMatch(existingUser -> user.getEmail().equals(existingUser.getEmail()))) {
-            String errorMessage = String.format("Имайл %s уже используется", user.getEmail());
-            throw new DuplicatedDataException(errorMessage);
+        jdbcTemplate.query(FIND_ALL_USERS, rs -> {
+            Long userId = rs.getLong("id");
+            User user = userMap.computeIfAbsent(userId, id -> {
+                try {
+                    return User.builder()
+                            .id(id)
+                            .email(rs.getString("email"))
+                            .login(rs.getString("login"))
+                            .name((rs.getString("name")))
+                            .birthday(rs.getDate("birthday").toLocalDate())
+                            .friends(new HashSet<>())
+                            .build();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            Long friendId = rs.getLong("friend_id");
+            if (friendId > 0 && !friendId.equals(userId)) {
+                user.getFriends().add(friendId);
+            } else {
+                log.warn("Запись или связь дружбы отсутствует в базе данных: userId={}, friendId={}", userId, friendId);
+            }
+        });
+
+        return new ArrayList<>(userMap.values());
+    }
+
+    @Override
+    public User findById(Long userId) {
+        try {
+            User user = jdbcTemplate.queryForObject(FIND_USER_BY_ID, new UserMapper(), userId);
+            user.setFriends(new HashSet<>(getFriendsId(user.getId())));
+            return user;
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Пользователь с ID " + userId + " не найден");
         }
     }
 
-    // !! Данный метод необходим в InMemoryUserStorage, поэтому содержится в интерфейсе. Для этого реализован здесь
-    // По сути просто обращается к методу findById(id). Может удалить при неиспользовании InMemoryUserStorage
-    public User getUserById(long id) {
-        return findById(id);
+    @Override
+    public List<User> getUsersFriends(long userId) {
+        List<User> users = jdbcTemplate.query(FIND_ALL_FRIENDS_USER, new UserMapper(), userId);
+        for (User user : users) {
+            user.setFriends(new HashSet<>(getFriendsId(user.getId())));
+        }
+        return users;
+    }
+
+    @Override
+    public List<User> commonFriends(long firstUserId, long secondUserId) {
+        List<User> users = jdbcTemplate.query(FIND_COMMON_FRIENDS, new UserMapper(), firstUserId, secondUserId);
+        for (User user : users) {
+            user.setFriends(new HashSet<>(getFriendsId(user.getId())));
+        }
+        return users;
+    }
+
+    @Override
+    public User create(User user) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    INSERT_USER, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, user.getEmail());
+            ps.setString(2, user.getLogin());
+            ps.setString(3, user.getName());
+            ps.setDate(4, Date.valueOf(user.getBirthday()));
+            return ps;
+        }, keyHolder);
+
+        Long generatedId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        user.setId(generatedId);
+
+        return user;
+    }
+
+    @Override
+    public User update(User user) {
+        jdbcTemplate.update(
+                UPDATE_USER,
+                user.getEmail(),
+                user.getLogin(),
+                user.getName(),
+                user.getBirthday(),
+                user.getId());
+        return user;
+    }
+
+    @Override
+    public void addFriends(long userId, long friendId) {
+        jdbcTemplate.update(INSERT_FRIENDS, userId, friendId);
+    }
+
+    @Override
+    public void delFriends(long userId, long friendId) {
+        jdbcTemplate.update(DELETE_FRIEND, userId, friendId);
+    }
+
+    @Override
+    public void deleteAllFriends(Long userId) {
+        jdbcTemplate.update(DELETE_ALL_FRIENDS, userId, userId);
+    }
+
+    // Новые методы
+    @Override
+    public boolean emilExists(User user) {
+        Integer count = jdbcTemplate.queryForObject(EMILE_EXISTS, Integer.class, user.getEmail());
+        return count > 0;
+    }
+
+    @Override
+    public boolean loginExists(User user) {
+        Integer count = jdbcTemplate.queryForObject(LOGIN_EXISTS, Integer.class, user.getLogin());
+        return count > 0;
+    }
+
+    // Вспомогательные методы
+    private Collection<Long> getFriendsId(Long userId) {
+        return jdbcTemplate.queryForList(FIND_FRIENDS_ID, Long.class, userId);
     }
 }

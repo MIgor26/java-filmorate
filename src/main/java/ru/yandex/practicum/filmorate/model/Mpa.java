@@ -1,9 +1,20 @@
 package ru.yandex.practicum.filmorate.model;
 
-public enum Mpa {
-    G, //— у фильма нет возрастных ограничений,
-    PG, //— детям рекомендуется смотреть фильм с родителями,
-    PG_13, //— детям до 13 лет просмотр не желателен,
-    R, //— лицам до 17 лет просматривать фильм можно только в присутствии взрослого,
-    NC_17 //— лицам до 18 лет просмотр запрещён.
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+@Data
+@Builder
+@EqualsAndHashCode(of = {"id"})
+public class Mpa {
+    @NotNull(message = "Id не должен быть null")
+    @PositiveOrZero(message = "Id не может быть отрицательным числом")
+    private Long id;
+
+    @NotBlank(message = "Название рейтинга не может быть пустым")
+    private String name;
 }
